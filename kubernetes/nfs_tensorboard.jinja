@@ -1,0 +1,60 @@
+{%- set namespace = properties["namespace"] -%}
+{%- set name = properties["name"] -%}
+{%- set image = properties["nfs_image"] -%}
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ name }}-nfs-server-tensorboard
+  namespace: {{ namespace }}
+spec:
+  selector:
+    name: {{ name }}
+    job: nfs-server-tensorboard
+  ports:
+  - name: nfs
+    port: 2049
+  - name: mountd
+    port: 20048
+  - name: rpcbind
+    port: 111
+
+
+---
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  name: {{ name }}-nfs-server-tensorboard
+  namespace: {{ namespace }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: {{ name }}
+        job: nfs-server-tensorboard
+    spec:
+      volumes:
+      - name: host-pv
+        hostPath:
+          path: HOME_DIR_PLACEHOLDER/GPU_cluster_storage/{{ namespace }}/{{ name }}/tensorboard
+      containers:
+      - name: nfs-server
+        image: {{ image }}
+        ports:
+        - name: nfs
+          containerPort: 2049
+        - name: mountd
+          containerPort: 20048
+        - name: rpcbind
+          containerPort: 111
+        volumeMounts:
+        - name: host-pv
+          mountPath: /exports
+        securityContext:
+          privileged: true
+{#- TODO:
+      nodeSelector: #}
+

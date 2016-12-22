@@ -1,0 +1,51 @@
+{%- set namespace = properties["namespace"] -%}
+{%- set name = properties["name"] -%}
+
+{%- set num_groups = properties["num_groups"] -%}
+{%- set ps_replicas = properties["ps_replicas"] -%}
+{%- set worker_replicas_each_group = properties["worker_replicas_each_group"] -%}
+
+{%- set ps_port = properties["ps_port"] -%}
+{%- set init_worker_port = properties["init_worker_port"] -%}
+
+{#- Template of Service -#}
+{%- for ps_idx in range(ps_replicas) -%}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ name }}-ps-{{ ps_idx }}
+  namespace: {{ namespace }}
+spec:
+  selector:
+    name: {{ name }}
+    group: "{{ ps_idx }}"
+  ports:
+  - port: {{ ps_port }}
+{% endfor -%}
+
+{%- set this_worker_idx = 0 -%}
+{%- for group_idx in range(num_groups) -%}
+{%- if not loop.first -%}
+{%- set this_worker_idx = this_worker_idx + worker_replicas_each_group[group_idx] -%}
+{%- endif -%}
+{%- set this_worker_port = init_worker_port | int -%}
+{%- for _ in range(worker_replicas_each_group[group_idx]) -%}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ name }}-worker-{{ this_worker_idx }}
+  namespace: {{ namespace }}
+spec:
+  selector:
+    name: {{ name }}
+    group: "{{ group_idx }}"
+  ports:
+  - port: {{ this_worker_port }}
+{% set this_worker_port = this_worker_port + 1 -%}
+{%- set this_worker_idx = this_worker_idx + 1 -%}
+{%- endfor -%}
+{%- endfor -%}
+
+

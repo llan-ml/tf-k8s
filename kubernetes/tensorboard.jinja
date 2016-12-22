@@ -1,0 +1,57 @@
+{%- set namespace = properties["namespace"] -%}
+{%- set name = properties["name"] -%}
+{%- set image = properties["tf_image"] -%}
+
+{%- set tensorboard_port = properties["tensorboard_port"] -%}
+{%- set nvidia_driver_version = properties["nvidia_driver_version"] -%}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ name }}-tensorboard
+  namespace: {{ namespace }}
+spec:
+  selector:
+    name: {{ name }}
+    job: tensorboard
+  type: NodePort
+  ports:
+  - port: {{ tensorboard_port }}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ name }}-tensorboard
+  namespace: {{ namespace }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: {{ name }}
+        job: tensorboard
+    spec:
+      volumes:
+      - name: nvidia-driver
+        hostPath:
+          path: /var/lib/nvidia-docker/volumes/nvidia_driver/{{ nvidia_driver_version }}
+      - name: nfs
+        nfs:
+          server: NFS_SERVER_PLACEHOLDER
+          path: /exports
+      containers:
+      - name: tensorboard
+        image: {{ image }}
+        command:
+        - "/run_tensorboard.sh"
+        args:
+        - "/mnt"
+        ports:
+        - containerPort: {{ tensorboard_port }}
+        volumeMounts:
+        - name: nvidia-driver
+          mountPath: /usr/local/nvidia/
+          readOnly: true
+        - name: nfs
+          mountPath: /mnt

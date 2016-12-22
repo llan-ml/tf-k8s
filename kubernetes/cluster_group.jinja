@@ -1,0 +1,126 @@
+{%- set namespace = properties["namespace"] -%}
+{%- set name = properties["name"] -%}
+{%- set image = properties["tf_image"] -%}
+
+{%- set num_groups = properties["num_groups"] -%}
+{%- set ps_replicas = properties["ps_replicas"] -%}
+{%- set worker_replicas_each_group = properties["worker_replicas_each_group"] -%}
+
+{%- set ps_port = properties["ps_port"] -%}
+{%- set init_worker_port = properties["init_worker_port"] -%}
+
+{%- set parameters = properties["parameters"] -%}
+
+{%- set nvidia_driver_version = properties["nvidia_driver_version"] -%}
+
+
+{#- Function to get host address -#}
+{%- macro ps_hosts() -%}
+  {%- for i in range(ps_replicas) -%}
+    {%- if not loop.first -%},{%- endif -%}
+    "{{ name }}-ps-{{ i }}:{{ ps_port }}"
+  {%- endfor -%}
+{%- endmacro -%}
+
+{%- macro worker_hosts() -%}
+  {%- set this_worker_idx = 0 -%}
+  {%- for group_idx in range(num_groups) -%}
+  {%- if not loop.first -%},
+  {%- set this_worker_idx = this_worker_idx + worker_replicas_each_group[group_idx] -%}
+  {%- endif -%}
+  {%- set this_worker_port = init_worker_port | int -%}
+  {%- for _ in range(worker_replicas_each_group[group_idx]) -%}
+    {%- if not loop.first -%},{%- endif -%}
+    "{{ name }}-worker-{{ this_worker_idx }}:{{ this_worker_port }}"
+  {%- set this_worker_port = this_worker_port + 1 -%}
+  {%- set this_worker_idx = this_worker_idx + 1 -%}
+  {%- endfor -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{%- set this_worker_idx = 0 -%}
+{%- for group_idx in range(num_groups) -%}
+{%- if not loop.first -%}
+{%- set this_worker_idx = this_worker_idx + worker_replicas_each_group[group_idx] -%}
+{%- endif -%}
+{%- set this_worker_port = init_worker_port | int -%}
+---
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: {{ name }}-group-{{ group_idx }}
+  namespace: {{ namespace }}
+spec:
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        name: {{ name }}
+        group: "{{ group_idx }}"
+    spec:
+      volumes:
+      - name: nvidia-driver
+        hostPath:
+          path: /var/lib/nvidia-docker/volumes/nvidia_driver/{{ nvidia_driver_version }}
+      - name: nfs
+        nfs:
+          server: 
+          path: /exports
+      restartPolicy: Never
+      containers:
+{%- if group_idx < ps_replicas %}
+      - name: ps-{{ group_idx }}
+        image: {{ image }}
+{%- for key, value in parameters -%}
+{%- if loop.first %}
+        args:
+{%- endif %}
+        - "--{{ key }} {{ value }}"
+{%- endfor %}
+        ports:
+        - containerPort: {{ ps_port }}
+        env:
+        - name: CLUSTER_SPEC
+          value: '{"ps": [{{ ps_hosts() }}], "worker": [{{ worker_hosts() }}]}'
+        - name: JOB_NAME
+          value: ps
+        - name: TASK_INDEX
+          value: "{{ group_idx }}"
+        volumeMounts:
+        - name: nvidia-driver
+          mountPath: /usr/local/nvidia/
+          readOnly: true
+        - name: nfs
+          mountPath: /mnt
+{%- endif -%}
+{%- for _ in range(worker_replicas_each_group[group_idx]) %}
+      - name: worker-{{ this_worker_idx }}
+        image: {{ image }}
+{%- for key, value in parameters -%}
+{%- if loop.first %}
+        args:
+{%- endif %}
+        - "--{{ key }} {{ value }}"
+{%- endfor %}
+        ports:
+        - containerPort: {{ this_worker_port }}
+        env:
+        - name: CLUSTER_SPEC
+          value: '{"ps": [{{ ps_hosts() }}], "worker": [{{ worker_hosts() }}]}'
+        - name: JOB_NAME
+          value: worker
+        - name: TASK_INDEX
+          value: "{{ this_worker_idx }}"
+        resources:
+          limits:
+            alpha.kubernetes.io/nvidia-gpu: 1
+        volumeMounts:
+        - name: nvidia-driver
+          mountPath: /usr/local/nvidia/
+          readOnly: true
+        - name: nfs
+          mountPath: /mnt
+{%- set this_worker_port = this_worker_port + 1 -%}
+{%- set this_worker_idx = this_worker_idx + 1 -%}
+{%- endfor %}
+{% endfor -%}
