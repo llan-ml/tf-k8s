@@ -15,7 +15,8 @@ import tensorlayer as tl
 
 def get_feed_dict(x, y_, network, FLAGS):
     X_train, y_train, X_val, y_val, X_test, y_test = \
-        tl.files.load_mnist_dataset(shape=(-1, 28, 28, 1))
+        tl.files.load_mnist_dataset(shape=(-1, 28, 28, 1),
+                                    path="./data/")
     
     X_train = np.asarray(X_train, dtype=np.float32)
     y_train = np.asarray(y_train, dtype=np.int64)
@@ -40,7 +41,7 @@ def get_feed_dict(x, y_, network, FLAGS):
 
 def get_validate_data(x, y_, FLAGS):
     X_train, y_train, X_val, y_val, X_test, y_test = \
-        tl.files.load_mnist_dataset(shape=(-1, 28, 28, 1))
+        tl.files.load_mnist_dataset(shape=(-1, 28, 28, 1), path="./data/")
     
     X_train = np.asarray(X_train, dtype=np.float32)    
     y_train = np.asarray(y_train, dtype=np.int64)

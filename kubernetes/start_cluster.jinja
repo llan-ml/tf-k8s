@@ -8,9 +8,13 @@ if [[ ! $(kubectl get namespaces | grep {{ namespace }}) ]]; then
   kubectl create -f namespace.yaml
 fi
 
+MASTER_IP=`perl -n -e '/server: http:\/\/(.*):/ && print "$1"' ${HOME}/.kube/config`
 mv nfs.yaml nfs.yaml.tmp
 home=${HOME//\//\\/}
 sed "s/HOME_DIR_PLACEHOLDER/${home}/g" nfs.yaml.tmp 1>nfs.yaml 2>/dev/null
+rm nfs.yaml.tmp
+mv nfs.yaml nfs.yaml.tmp
+sed "s/kubernetes.io\/hostname:.*$/kubernetes.io\/hostname: ${MASTER_IP}/g" nfs.yaml.tmp 1>nfs.yaml 2>/dev/null
 rm nfs.yaml.tmp
 kubectl create -f nfs.yaml
 

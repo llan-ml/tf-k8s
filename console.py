@@ -8,8 +8,7 @@ Created on Thu Dec 15 16:46:10 2016
 import os
 import argparse
 import yaml
-
-HOME = os.environ.get("HOME")
+from utils import client
 
 def main(args):
     with open(args.config, "r") as f:
@@ -22,10 +21,21 @@ def main(args):
         tf_config = config["tensorflow"]
     except KeyError:
         tf_config = {}
+    try:
+        data_config = config["data"]
+    except KeyError:
+        data_config = {}
     
+    groups = client.request(int(k8s_config["num_gpus"]))
+    k8s_config.pop("num_gpus")
+    k8s_config["num_groups"] = len(groups)
+    k8s_config["ps_replicas"] = len(groups) \
+        if len(groups) % 2 != 0 else len(groups) - 1
+    k8s_config["worker_replicas_each_group"] = groups
     k8s_args = ["--{} \"{}\"".format(key, value)
         for key, value in k8s_config.iteritems()]
     k8s_args = " ".join(k8s_args) if k8s_args else ""
+    
     tf_args = [(key, value) for key, value in tf_config.iteritems()]
     tf_args = "--parameters \"{}\"".format(tf_args) if tf_args else ""
     render_args = "{} {}".format(k8s_args, tf_args)
@@ -35,13 +45,21 @@ def main(args):
     if "user_model_file" not in tf_config.keys() \
         or tf_config["user_model_file"] == "example_user_model.py":
         copy_files.append("./examples/example_user_model.py")
+    else:
+        copy_files.append(tf_config["user_model_file"])
+    if "data_dir" not in data_config.keys() \
+        or data_config["data_dir"] == "./examples/data":
+        copy_files.append("./examples/data")
+    else:
+        copy_files.append(data_config["data_dir"])
 
-    work_dir = HOME + "/GPU_cluster_storage/{}/{}".format(
+    work_dir = ROOT_DIR + "../GPU_cluster_storage/{}/{}".format(
                                                 k8s_config["namespace"],
                                                 k8s_config["name"])
 
-    os.system("cp {} {}".format(" ".join(copy_files), work_dir))
-    os.system("cp {} {}/k8s_config".format("./kubernetes/get_num_gpus.py", work_dir))
+    os.system("mkdir -p {}".format(work_dir))
+    os.system("echo {} > {}/.groups".format(groups, work_dir))
+    os.system("cp -r {} {}".format(" ".join(copy_files), work_dir))
     os.system("chmod +x {}/start_cluster.sh".format(work_dir))
     os.system("chmod +x {}/stop_cluster.sh".format(work_dir))
     os.system("chmod +x {}/start_tensorboard.sh".format(work_dir))
@@ -57,4 +75,5 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    ROOT_DIR = "{}/".format(os.getcwd())
     config=main(args)

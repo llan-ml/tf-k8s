@@ -13,8 +13,6 @@ import os
 import argparse
 import jinja2
 
-HOME = os.environ.get("HOME")
-
 NAMESPACE_JINJA = "namespace.jinja"
 NFS_JINJA = "nfs.jinja"
 CLUSTER_SERVICE_JINJA = "cluster_service.jinja"
@@ -34,7 +32,7 @@ JINJA_FILE_1 = [START_CLUSTER_JINJA, STOP_CLUSTER_JINJA,
 
 def main(args):
     properties = dict(args._get_kwargs())
-    dirname = HOME + "/GPU_cluster_storage/{}/{}/k8s_config".format(
+    dirname = ROOT_DIR + "../GPU_cluster_storage/{}/{}/k8s_config".format(
         properties["namespace"], properties["name"])
     os.system("mkdir -p {}".format(dirname))
     for jinja_file in JINJA_FILE_0:
@@ -71,16 +69,16 @@ if __name__ == "__main__":
         required=False)
     parser.add_argument(
         "--num_groups",
-        default=1,
-        type=int)
+        type=int,
+        required=True)
     parser.add_argument(
         "--ps_replicas",
-        default=1,
-        type=int)
+        type=int,
+        required=True)
     parser.add_argument(
         "--worker_replicas_each_group",
-        default="[2]",
-        type=eval)
+        type=eval,
+        required=True)
     parser.add_argument(
         "--parameters",
         default="[]",
@@ -103,4 +101,5 @@ if __name__ == "__main__":
         
     args = parser.parse_args()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    ROOT_DIR = "{}/../".format(os.getcwd())
     main(args)

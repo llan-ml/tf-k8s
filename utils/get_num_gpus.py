@@ -14,7 +14,7 @@ import json
 from jsonpath_rw import parse
 
 def main(args):
-    info = json.loads(args.out_json)
+    info = json.loads(args.json)
     jsonpath_expr = parse(
         'items[*].status.allocatable.["alpha.kubernetes.io/nvidia-gpu"]')
     num_gpus = [int(match.value) for match in jsonpath_expr.find(info)]
@@ -25,7 +25,7 @@ if __name__ == "__main__":
         description="")
     
     parser.add_argument(
-        "--out_json")
+        "--json")
         
     args = parser.parse_args()
     main(args)
