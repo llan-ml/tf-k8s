@@ -45,7 +45,7 @@
 {%- endif -%}
 {%- set this_worker_port = init_worker_port | int -%}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ name }}-group-{{ group_idx }}
