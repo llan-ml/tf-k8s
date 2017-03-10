@@ -6,6 +6,6 @@ A platform for High Performance Computing (HPC)
 
 - System: Ubuntu 14.04
 - Docker Engine: Docker, Nvidia-docker
-- Orchestration: Kubernetes, Issuse [#28216](https://github.com/kubernetes/kubernetes/pull/28216)
+- Orchestration: Kubernetes 1.6 with multi-GPU support
 - DL library: TensorFlow, TensorLayer
 
