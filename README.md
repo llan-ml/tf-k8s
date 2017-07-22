@@ -2,6 +2,8 @@
 
 A platform for High Performance Computing (HPC)
 
+Please refer the new version [gpu_cluster_console](https://github.com/llan-ml/gpu_cluster_console)
+
 ## Prerequisites
 
 - System: Ubuntu 14.04
